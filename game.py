@@ -1,19 +1,22 @@
 import pygame
 import numpy as np
 import random
-class snake_environement():
+class snake_environment():
     def __init__(self, width, height, move_limit, block_size, visual = False):
+        
+        
+
+
+
         self.width = width
         self.height = height
 
-
-        
 
         self.move_limit = move_limit
         self.block_size = block_size
         self.visual = visual
         self.state_layout = [0 for i in range(self.width*self.height+1)]  
-        
+        self.all_apple_positions_layout = [(x, y) for x in range(width)for y in range(height)]
         
 
 
@@ -43,7 +46,7 @@ class snake_environement():
         
         for pos_index in range(len(self.snake_body)-1):
 
-            state[self.width*self.snake_body[pos_index][1]+self.snake_body[pos_index][0]] = (max_length-pos_index)/(max_length+1) #pos_index+3
+            state[self.width*self.snake_body[pos_index][1]+self.snake_body[pos_index][0]] =(max_length-pos_index)/(max_length+1) #pos_index+3
 
         
 
@@ -59,23 +62,30 @@ class snake_environement():
 
 
 
-    def random_apple_position(self, new_head_position = []):
-        while True:
-            apple_position = [random.randint(0, self.width-1), random.randint(0, self.height-1)]
-            if apple_position not in self.snake_body and apple_position != new_head_position:
-                break
-        return apple_position
+    def random_apple_position(self):     
+        if not self.valid_apple_positions:
+            return None
+        return random.choice(tuple(self.valid_apple_positions))
+            
+
+
+        #while True:
+        #    apple_position = [random.randint(0, self.width-1), random.randint(0, self.height-1)]
+        #    if apple_position not in self.snake_body and apple_position != new_head_position:
+        #        break
+        #return apple_position
 
     
 
     def reset(self):
-
         self.move_counter = 0
 
         
-        self.snake_body = [[self.width//8, self.height//2], [self.width//8+1, self.height//2]]
+        self.snake_body = [(self.width//8, self.height//2), (self.width//8+1, self.height//2)]
 
-
+        self.valid_apple_positions = set(self.all_apple_positions_layout.copy())
+        for body in self.snake_body:
+            self.valid_apple_positions.discard(body)
 
         self.apple_position = self.random_apple_position()
 
@@ -120,16 +130,12 @@ class snake_environement():
         done = False
         self.move_counter += 1
 
-        new_head_position = [0, 0]
-        old_head_position = [self.snake_body[-1][0], self.snake_body[-1][1]]
+        
+        old_head_position = (self.snake_body[-1][0], self.snake_body[-1][1])
 
         self.current_direction = self.get_relative_direction(action) 
 
-        new_head_position[0] = self.current_direction[0] + old_head_position[0]
-        new_head_position[1] = self.current_direction[1] + old_head_position[1]
-
-
-        
+        new_head_position = (self.current_direction[0] + old_head_position[0], self.current_direction[1] + old_head_position[1])
 
    
         
@@ -148,9 +154,25 @@ class snake_environement():
             done = True
 
 
-        elif new_head_position == self.apple_position:
+
+        #Update valid apple positions
+        self.valid_apple_positions.discard(new_head_position)
+        self.valid_apple_positions.add(self.snake_body[0])
+
+
+        #Update Snake Body
+        self.snake_body.append(new_head_position)       
+        if self.length< len(self.snake_body):
+            self.snake_body = self.snake_body[1: len(self.snake_body)]
+            #self.batch_snakes.pop(0)
+
+
+
+        if new_head_position == self.apple_position:
             reward = 10 + self.length - 0.015*self.move_counter
-            self.apple_position = self.random_apple_position(new_head_position=new_head_position)
+            self.apple_position = self.random_apple_position()
+            if self.apple_position == None:
+                done = True
             self.length += 1
             self.move_counter = 0
 
@@ -159,13 +181,7 @@ class snake_environement():
             reward = self.reward_function()
 
         
-        #Update Snake Body
-        self.snake_body.append(new_head_position)       
-        if self.length< len(self.snake_body):
-            self.snake_body = self.snake_body[1: len(self.snake_body)]
-            #self.batch_snakes[self.game_index].pop(0)
-
-
+        
         if done:
             state = [0 for i in range(self.width*self.height+1)]
         else:
@@ -183,7 +199,7 @@ class snake_environement():
             input_vector = self.get_game_vector()
             clock = pygame.time.Clock()
 
-            for num in range(len(input_vector)):
+            for num in range(len(input_vector)-1):
                 pos_width = (num % self.width)*self.block_size
                 pos_height = (num // (self.width)) * self.block_size
 
@@ -192,17 +208,17 @@ class snake_environement():
                     color = [255, 0, 0]
                 elif input_vector[num] == 2:
                     color = [255, 0, 255]
-                elif input_vector[num] > 2:
-
+                elif input_vector[num] == 0:
+                    color = [0, 0, 0]
+                    
+                else:
                     #color1 = 200-(160//self.length)*(input_vector[num]-2)
                     # color3 = 120-(80//self.length)*(input_vector[num]-2)
                     color1 = 150
                     color3 = 150
                     color = [color1, 0, color3]
-                else:
-                    color = [0, 0, 0]
                 pygame.draw.rect(self.screen, color, (pos_width, pos_height, self.block_size, self.block_size))
             pygame.display.update()
-            clock.tick(15)
+            clock.tick(10)
         else:
             print('You need to set visual True') 
