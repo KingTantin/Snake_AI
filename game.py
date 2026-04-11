@@ -68,13 +68,6 @@ class snake_environment():
         return random.choice(tuple(self.valid_apple_positions))
             
 
-
-        #while True:
-        #    apple_position = [random.randint(0, self.width-1), random.randint(0, self.height-1)]
-        #    if apple_position not in self.snake_body and apple_position != new_head_position:
-        #        break
-        #return apple_position
-
     
 
     def reset(self):
@@ -138,12 +131,15 @@ class snake_environment():
         new_head_position = (self.current_direction[0] + old_head_position[0], self.current_direction[1] + old_head_position[1])
 
    
+        #Update valid apple positions
+        self.valid_apple_positions.discard(new_head_position)
+        self.valid_apple_positions.add(self.snake_body[0])
         
 
 
         #Terminal state
         if new_head_position[0] > (self.width-1) or new_head_position[1] > (self.height-1) or new_head_position[0] < 0 or new_head_position[1] < 0 or new_head_position in self.snake_body:
-
+            
             reward = -10
             done = True
 
@@ -155,21 +151,13 @@ class snake_environment():
 
 
 
-        #Update valid apple positions
-        self.valid_apple_positions.discard(new_head_position)
-        self.valid_apple_positions.add(self.snake_body[0])
-
-
-        #Update Snake Body
-        self.snake_body.append(new_head_position)       
-        if self.length< len(self.snake_body):
-            self.snake_body = self.snake_body[1: len(self.snake_body)]
-            #self.batch_snakes.pop(0)
 
 
 
-        if new_head_position == self.apple_position:
+        elif new_head_position == self.apple_position:
             reward = 10 + self.length - 0.015*self.move_counter
+
+            self.valid_apple_positions.discard(self.snake_body[0])
             self.apple_position = self.random_apple_position()
             if self.apple_position == None:
                 done = True
@@ -179,12 +167,19 @@ class snake_environment():
 
         else:
             reward = self.reward_function()
+            #reward = 0
+        
+        #Update Snake Body
+        self.snake_body.append(new_head_position)       
+        if self.length< len(self.snake_body):
+            self.snake_body.pop(0)
 
-        
-        
+
+
         if done:
-            state = [0 for i in range(self.width*self.height+1)]
+            state = self.state_layout.copy()
         else:
+           
             state = self.get_game_vector()
 
 
@@ -194,9 +189,8 @@ class snake_environment():
         
         return state, reward, done
 
-    def draw_game(self):
+    def draw_game(self, input_vector):
         if self.visual:
-            input_vector = self.get_game_vector()
             clock = pygame.time.Clock()
 
             for num in range(len(input_vector)-1):
